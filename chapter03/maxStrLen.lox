@@ -1,0 +1,5 @@
+var str = "a";
+while(true) {
+  str = str + str;
+  print(str);
+}
