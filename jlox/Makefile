@@ -10,10 +10,15 @@ $(TARGET): $(SRC_FILES)
 run: $(TARGET)
 	@ java -cp target/jlox-1.0-SNAPSHOT.jar com.craftinginterpreters.lox.Lox $(ARG)
 
+# Run the tests for final version of jlox.
+test: $(TARGET)
+	@ python3 util/test.py jlox
+
 help:
 	@ echo 'make help:	shows this message'
 	@ echo 'make: 		compiles jlox'
 	@ echo 'make run: 	runs jlox'
+	@ echo 'make test: 	runs jlox tests'
 
 # Tell make that "run" is not the name of a file.
-.PHONY: run
+.PHONY: help run test
