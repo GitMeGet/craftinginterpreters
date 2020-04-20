@@ -1,0 +1,302 @@
+http://craftinginterpreters.com/
+
+## Chapter 1
+# why learn languages
+- there’s still a good chance you’ll find yourself needing to whip up a parser or something when there isn’t an existing library that fits your needs
+- you’ll come away a stronger programmer, and smarter about how you use data structures and algorithms in your day job.
+- if you’ve felt intimidated by languages, and this book helps you overcome that fear
+
+# yacc / bison
+- Yacc is a tool that takes in a grammar file and produces a source file for a compiler, so it’s sort of like a “compiler” that outputs a compiler, which is where we get the term “compiler-compiler”.
+
+What this book doesn’t contain is the machinery needed to compile and run the code. I assume you can slap together a makefile or a project in your IDE of choice in order to get the code to run.
+
+# self hosting compilers
+- implement a compiler in any language, including the same language it compiles, a process called “self-hosting”.
+
+# challenge
+1) There are at least six domain-specific languages used in the little system I cobbled together to write and publish this book. What are they?
+
+2) Get a “Hello, world!” program written and running in Java. Set up whatever Makefiles or IDE projects you need to get it working. If you have a debugger, get comfortable with it and step through your program as it runs.
+
+makefile basics
+http://www.cs.colby.edu/maxwell/courses/tutorials/maketutor/
+- Note that make with no arguments executes the first rule in the file.
+- tell make that "run" is not the name of a file.
+    .PHONY: run
+- putting the list of files on which the command depends on the first line after the :, make knows that the rule hellomake needs to be executed if any of those files change
+    hellomake: hellomake.c hellofunc.c
+
+3) Do the same thing for C. To get some practice with pointers, define a doubly-linked list of heap-allocated strings. Write functions to insert, find, and delete items from it. Test them.
+
+debug w/ gdb
+https://cs.baylor.edu/~donahoo/tools/gdb/tutorial.html
+    % gcc -g broken.cpp -o broken
+    % gdb broken
+    (gdb) b main
+    (gdb) run
+
+## Chapter 2
+use “language” to refer to either a language or an implementation of it, or both, unless the distinction isn’t obvious.
+- language is its specification
+- implementation: things like “stack”, “bytecode”, and “recursive descent”, are nuts and bolts a particular language might use
+
+# scanning
+- aka lexing, lexical analysis, tokenization
+- takes in the linear stream of characters and chunks them together into a series of tokens
+
+# parsing
+- takes the flat sequence of tokens and builds a tree structure that mirrors the nested nature of the grammar
+- extracts meaning from the tokens
+
+# static analysis
+- e.g. binding (or resolution)
+    -- the first bit of analysis that most languages do
+    -- for each identifier, we find out where that name is defined and wire the two together.
+    -- if the language is statically typed, this is when we type check.
+
+- this semantic insight is then stored either:
+    a) as attributes on the syntax tree itself
+    b) in a symbol table
+    c) as intermediate representations
+
+!-- up till this point, considered "front end" of the implementation --!
+- The front end of the pipeline is specific to the source language the user is programming in.
+- The back end is concerned with the final architecture that the code will run on.
+
+# intermediate representations (or IR)
+- isn’t tightly tied to either the source language or destination architecture
+- This lets you support multiple source languages and target platforms with less effort
+
+# optimization
+- Once we understand what the user’s program means, we are free to swap it out with a different program that has the same semantics but implements them more efficiently
+- e.g. constant folding:
+    -- if some expression always evaluates to the exact same value, we can do the evaluation at compile time and replace the code for the expression with its result.
+
+# code generation
+- generate instructions a CPU runs
+- We have a decision to make: Do we generate instructions for a real CPU or a virtual one (bytecode)?
+
+# virtual machine
+- If your compiler produces bytecode, since there is no chip that speaks that bytecode, it’s your job to translate
+    a) You can write a little mini-compiler for each target architecture that converts the bytecode to native code for that machine. You still have to do work for each chip you support, but this last stage is pretty simple and you get to reuse the rest of the compiler pipeline across all of the machines you support. You’re basically using your bytecode as an intermediate representation.
+    b) Or write a virtual machine, a program that emulates a hypothetical chip supporting your virtual architecture at runtime. Running bytecode in a VM is slower as every instruction must be simulated at runtime each time it executes. In return, you get simplicity and portability. Implement your VM in, say, C, and you can run your language on any platform that has a C compiler
+
+* basic principle
+- the farther down the pipeline you can push the architecture-specific work, the more of the earlier phases you can share across architectures.
+- There is a tension, though. Many optimizations, like register allocation and instruction selection, work best when they know the strengths and capabilities of a specific chip. Figuring out which parts of your compiler can be shared and which should be target-specific is an art.
+
+# runtime
+- If we compiled it to machine code, we simply tell the operating system to load the executable and off it goes
+- If we compiled it to bytecode, we need to start up the VM program and load the bytecode into that.
+
+- In both cases, for all but the basest of low-level languages, we usually need some services that our language provides while the program is running
+    -- e.g. garbage collection
+
+- In a fully compiled language, the code implementing the runtime gets inserted directly into the resulting executable
+    -- e.g. Go
+- If the language is run inside an interpreter or VM, then the runtime lives there.
+    -- e.g. Java, Python, JavaScript
+
+# single-pass compilers
+- produce output code directly in the parser, without ever allocating any syntax trees or other IRs
+- That means as soon as you see some expression, you need to know enough to correctly compile it.
+    -- Pascal and C were designed around this limitation. At the time, memory was so precious that a compiler might not even be able to hold an entire source file in memory, much less the whole program.
+    -- This is why Pascal’s grammar requires type declarations to appear first in a block.
+    -- It’s why in C you can’t call a function above the code that defines it unless you have an explicit forward declaration that tells the compiler what it needs to know to generate code for a call to the later function.
+
+# Tree-walk interpreters
+- Some programming languages begin executing code right after parsing it to an AST (with maybe a bit of static analysis applied)
+
+# transpiler
+- We write a front end for our language. Then, in the back end, instead of doing all the work to lower the semantics to some primitive target language, we produce a string of valid source code for some other language w/ existing compilation tools
+- If the two languages are more semantically different, then you’ll see more of the typical phases of a full compiler including analysis and possibly even optimization
+
+# Just-in-time compilation
+- On the end user’s machine, when the program is loaded, you compile it to native for the architecture their computer supports
+- The most sophisticated JITs insert profiling hooks into the generated code
+    -- to see which regions are most performance critical and what kind of data is flowing through them.
+    -- Then, over time, they will automatically recompile those hot spots with more advanced optimizations.
+
+# challenge
+1) Pick an open source implementation of a language you like. Download the source code and poke around in it. Try to find the code that implements the scanner and parser. Are they hand-written, or generated using tools like Lex and Yacc? (.l or .y files usually imply the latter.)
+https://github.com/python/cpython/blob/master/Parser/tokenizer.h
+https://github.com/python/cpython/blob/master/Parser/parser.h
+
+2) Just-in-time compilation tends to be the fastest way to implement a dynamically-typed language, but not all of them use it. What reasons are there to not JIT?
+
+3) Most Lisp implementations that compile to C also contain an interpreter that lets them execute Lisp code on the fly as well. Why?
+
+## Chapter 3 Intro to Lox
+
+# C-like syntax
+
+# Dynamic typing
+- type errors are detected and reported at runtime.
+- A static type system is a ton of work to learn and implement
+
+# Automatic memory management
+- two main techniques for managing memory: reference counting and tracing garbage collection (usually just called “garbage collection” or “GC”).
+    -- Ref counters are much simpler to implement—I think that’s why Perl, PHP, and Python all started out using them. But, over time, the limitations of ref counting become too troublesome.
+    -- In practice, ref counting and tracing are more ends of a continuum than opposing sides.
+- we are going to write our own garbage collector
+
+# Data types
+- Boolean
+- Numbers
+    -- double-precision floating point
+    -- settle for basic integer (e.g. 123) and decimal literals (123.4), no hex etc
+- Strings
+    -- they are enclosed in double quotes
+- Nil
+    -- called “null” in many other languages
+    -- There are good arguments for not having a null value in a language since null pointer errors are the scourge of our industry. If we were doing a statically-typed language, it would be worth trying to ban it. In a dynamically-typed one, though, eliminating it is often more annoying than having it.
+
+# Expressions
+- Arithmetic
+    -- The negation operator is actually both an infix and a prefix one
+        e.g. a = b - c;
+             a = -b;
+    -- All of these operators work on numbers, and it’s an error to pass any other types to them. The exception is the + operator, you can also pass it two strings to concatenate them.
+- Comparison and equality
+    -- Values of different types are never equivalent:
+        e.g. 3.14 == "pi" // false
+- Logical operators
+    -- ! (not operator), and, or
+- Precedence and grouping
+    -- same precedence and associativity that you’d expect coming from C
+- Statements
+    -- Baking print into the language instead of just making it a core library function is a hack. But it’s a useful hack for us: it means our in-progress interpreter can start producing output before we’ve implemented all of the machinery required to define functions, look them up by name, and call them.
+    -- If you want to pack a series of statements where a single one is expected, you can wrap them up in a block
+        {
+          print "One statement.";
+          print "Two statements.";
+        }
+- Variables
+    -- declare variables using var statements.
+    -- If you omit the initializer, the variable’s value defaults to nil
+- Control Flow
+    -- if, while, for
+- Functions
+    -- Unlike, say, Ruby, the parentheses are mandatory in this case. If you leave them off, it doesn’t call the function, it just refers to it.
+    -- A language isn’t very fun if you can’t define your own functions. In Lox, you do that with "fun"
+        fun printSum(a, b) {
+          print a + b;
+        }
+    -- argument: an actual value you pass to a function when you call it. So a function call has an argument list. Sometimes you hear “actual parameter” used for these.
+    -- parameter: variable that holds the value of the argument inside the body of the function. Thus, a function declaration has a parameter list. Others call these “formal parameters” or simply “formals”.
+    -- If execution reaches the end of the block without hitting a return, it implicitly returns nil.
+- Closures
+    -- Functions are first class in Lox, which just means they are real values that you can get a reference to, store in variables, pass around, etc
+    -- inner functions “hold on” to references to any surrounding variables that it uses so that they stay around even after the outer function has returned. We call functions that do this “closures"
+    -- implementing closures adds some complexity because we can no longer assume variable scope works strictly like a stack where local variables evaporate the moment the function returns.
+- Classes
+    -- Just like functions, classes are first class in Lox
+    -- Call a class like a function and it produces a new instance of itself
+    -- you can define an initializer. If your class has a method named init(), it is called automatically when the object is constructed.
+    -- single inheritance using < operator
+
+# The Standard Library
+- only supports print, clock()
+- If you wanted to turn Lox into an actual useful language, the very first thing you should do is flesh this out.
+    -- String manipulation, trigonometric functions, file I/O, networking, heck, even reading input from the user
+
+# challenge
+1) Write some sample Lox programs and run them (you can use the implementations of Lox in my repository). Try to come up with edge case behavior I didn’t specify here. Does it do what you expect? Why or why not?
+
+export clox path
+https://askubuntu.com/questions/322772/how-do-i-add-an-executable-to-my-search-path
+    $ nano ~/.bashrc
+    $ export PATH="/path/to/folder:$PATH"
+    $ source ~/.bashrc
+    * somehow only clox works, jlox needs to be executed from the folder
+
+maxStrLen.lox: test how long a string can be, by concatenating itself in while(true) loop
+    str = "a";
+    str = str + str;
+    seemingly doesn't crash [after couple of minutes]
+
+2) This informal introduction leaves a lot unspecified. List several open questions you have about the language’s syntax and semantics. What do you think the answers should be?
+
+3) Lox is a pretty tiny language. What features do you think it is missing that would make it annoying to use for real programs? (Aside from the standard library, of course.)
+
+    i) Lists/arrays. You can build your own linked lists, but there's no way to create a data structure that stores a contiguous series of values that can be accessed in constant time in user code. That has to be baked into the language or core library.
+
+    ii) Some mechanism for handling runtime errors along the lines of exception handling.
+
+    iii) No break or continue for loops.
+
+    iv) No switch.
+        but there's if, else if, else
+
+# Self-hosted Lox interpreter
+https://github.com/benhoyt/loxlox
+
+## Chapter 4 Scanning
+By the end of this chapter, we’ll have a full-featured, fast scanner that can take any string of Lox source code and produce the tokens that we’ll feed into the parser in the next chapter.
+
+# exit codes
+https://man.openbsd.org/sysexits.3
+
+# error handling
+- if you care about making a language that’s actually usable, then handling errors gracefully is vital.
+- The tools our language provides for dealing with errors make up a large portion of its user interface.
+- good engineering practice to separate the code that generates the errors from the code that reports them.
+
+# Lexeme (token) type
+- parser could categorize tokens from the raw lexeme by comparing the strings, but that’s slow and kind of ugly.
+- Instead, at the point that we recognize a lexeme, we also remember which kind of lexeme it represents.
+
+# Location info
+- to indicate which line and column the error is at
+    -- Some token implementations store the location as two numbers: the offset from the beginning of the source file to the beginning of the lexeme, and the length of the lexeme. The scanner needs to know these anyway, so there’s no overhead to calculate them.
+    -- An offset can be converted to line and column positions later by looking back at the source file and counting the preceding newlines. That sounds slow, and it is. However you only need to do it when you need to actually display a line and column to the user. Most tokens never appear in an error message. For those, the less time you spend calculating position information ahead of time, the better.
+
+# Regular languages and expressions
+- Scanner (Tokenizer) figures out what lexeme it belongs to, and consumes it and any following characters that are part of that lexeme. When it reaches the end of that lexeme, it emits a token.
+- You very precisely can recognize all of the different lexemes for Lox using regexes if you want to
+- Tools like Lex or Flex are designed expressly to let you do this—throw a handful of regexes at them, and they give you a complete scanner back.
+
+- Note also that we keep scanning.
+    -- There may be other errors later in the program. It gives our users a better experience if we detect as many of those as possible in one go.
+    -- Otherwise, they see one tiny error and fix it, only to have the next error appear, and so on.
+
+Comments are lexemes, but they aren’t meaningful, and the parser doesn’t want to deal with them
+- So when we reach the end of the comment, we don’t call addToken().
+- When we loop back around to start the next lexeme, start gets reset and the comment’s lexeme disappears in a puff of smoke.
+
+# Number literals
+- supported: 1234, 12.34
+- invalid: .1234, 1234.
+- Java standard library provides Character.isDigit() which seems like a good fit.
+    -- Alas, that method allows things like Devanagari digits, fullwidth numbers, and other funny stuff we don’t want.
+
+# Setup Maven build
+http://maven.apache.org/guides/getting-started/maven-in-five-minutes.html
+    1) Generate project
+        $ mvn archetype:generate -DgroupId=com.craftinginterpreters.lox -DartifactId=jlox -DarchetypeArtifactId=maven-archetype-quickstart -DarchetypeVersion=1.4 -DinteractiveMode=false
+    2) Place source files in jlox/src/main/java/com/craftinginterpreters/lox
+    3) Build project
+        /jlox $ mvn package
+    4) Run executable
+        /jlox $ java -cp target/jlox-1.0-SNAPSHOT.jar com.craftinginterpreters.lox.Lox
+
+# Maximal munch / longest match
+- When two lexical grammar rules match a chunk of code that the scanner is looking at, whichever one matches the most characters wins
+    e.g. keyword "or" vs variable "orchid"
+
+# makefile:4: *** missing separator. Stop
+https://stackoverflow.com/questions/16931770/makefile4-missing-separator-stop
+- check that tabs have not been replaced by 4 spaces
+- Make is particular about that
+
+# pass argument to makefile
+https://stackoverflow.com/questions/2826029/passing-additional-variables-from-command-line-to-make
+- make run ARG=<filename>
+- then refer to it using $(<filename>)
+
+# echo in makefile
+https://stackoverflow.com/questions/3707517/make-file-echo-displaying-path-string
+- e.g.
+run: $(TARGET)
+    @ echo 'running interpreter'
