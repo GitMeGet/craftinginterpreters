@@ -1,0 +1,9 @@
+/* this is a
+multiline block
+comment */
+
+/*
+  // regular comment in a block comment
+*/
+
+// expect: EOF  null

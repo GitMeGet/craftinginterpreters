@@ -74,7 +74,11 @@ class Scanner {
           // comments are single-line, consume characters till newline character
           while (peek() != '\n' && !isAtEnd())
             advance();
+        } else if (match('*')) {
+          // block comments
+          blockComment();
         } else {
+          // regular slash token
           addToken(SLASH);
         }
         break;
@@ -100,6 +104,26 @@ class Scanner {
         }
         break;
     }
+  }
+
+  private void blockComment() {
+    int startLine = line;
+
+    // block comment ends in "*/"
+    while(!(peek() == '*' && peekNext() == '/') && !isAtEnd()) {
+      if (peek() == '\n') line++;
+      advance();
+    }
+
+    // if isAtEnd(), raise error since block comment is unterminated
+    if (isAtEnd()) {
+      Lox.error(startLine, "Unterminated block comment.");
+      return;
+    }
+
+    // consume termination characters
+    advance();
+    advance();
   }
 
   // allows multiline strings

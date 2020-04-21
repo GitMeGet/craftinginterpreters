@@ -316,16 +316,33 @@ http://trevorjim.com/python-is-not-context-free/
 
 2) Aside from separating tokens—distinguishing print foo from printfoo—spaces aren’t used for much in most languages. However, in a couple of dark corners, a space does affect how code is parsed in CoffeeScript, Ruby, and the C preprocessor. Where and what effect does it have in each of those languages?
 
+The C preprocessor relies on spaces to distinguish function macros from simple macros
+- MACRO1 is a simple text macro that expands to (p) (p)
+    #define MACRO1 (p) (p)
+- MACRO2(p) is a function-like macro that takes a parameter and expands to (p) with p replaced by the parameter
+    #define MACRO2(p) (p)
+
 3) Our scanner here, like most, discards comments and whitespace since those aren’t needed by the parser. Why might you want to write a scanner that does not discard those? What would it be useful for?
+
+generating documentation from source code comments
 
 4) Add support to Lox’s scanner for C-style /* ... */ block comments. Make sure to handle newlines in them. Consider allowing them to nest. Is adding support for nesting more work than you expected? Why?
 
+why support nested comments?
+https://softwareengineering.stackexchange.com/questions/116330/why-dont-more-languages-support-recursive-nested-comments
+- to comment out chunks of commented out code
+  /*
+    /*
+      <unused code 1>
+    */
+    /*
+      <unused code 2>
+    */
+  */
 
-
-
-
-
-
+- but doing so complicates lexer
+    -- cannot use context-free grammars (regex) to lex since state (counting level of nesting) is stored
+    -- have to use recursive-descent lexer
 
 
 // EOF
